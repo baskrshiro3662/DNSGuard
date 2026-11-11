@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react'
 import {
   Shield, LayoutDashboard, Activity, AlertTriangle, FileText, Settings,
   Network, Database, ShieldAlert, Download, Search, Filter, Globe,
-  Server, Lock, RefreshCw, Eye, X, Save, SlidersHorizontal
+  Lock, RefreshCw, Eye, X, Save, SlidersHorizontal
 } from 'lucide-react'
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -302,7 +302,7 @@ function App() {
     return <div className="empty-chart">{children}</div>
   }
 
-  function OverviewPage() {
+  function renderOverviewPage() {
     return (
       <>
         <div className="metrics-grid">
@@ -425,7 +425,7 @@ function App() {
     )
   }
 
-  function AnalyticsPage() {
+  function renderAnalyticsPage() {
     return (
       <div className="page-stack">
         <div className="metrics-grid">
@@ -488,7 +488,7 @@ function App() {
     )
   }
 
-  function AlertsPage() {
+  function renderAlertsPage() {
     return (
       <section className="panel">
         <div className="panel-heading">
@@ -542,7 +542,7 @@ function App() {
     )
   }
 
-  function ReportsPage() {
+  function renderReportsPage() {
     return (
       <div className="page-stack">
         <section className="panel">
@@ -585,7 +585,7 @@ function App() {
     )
   }
 
-  function ConfigurationPage() {
+  function renderConfigurationPage() {
     const toggle = (key, label, description) => (
       <div className="setting-row" key={key}>
         <div><strong>{label}</strong><p>{description}</p></div>
@@ -693,11 +693,11 @@ function App() {
 
           <div className="notice">{message}{fileName && <span> · {fileName}</span>}</div>
 
-          {activePage === 'Overview' && <OverviewPage />}
-          {activePage === 'DNS Analytics' && <AnalyticsPage />}
-          {activePage === 'Threat Alerts' && <AlertsPage />}
-          {activePage === 'Reports' && <ReportsPage />}
-          {activePage === 'Configuration' && <ConfigurationPage />}
+          {activePage === 'Overview' && renderOverviewPage()}
+          {activePage === 'DNS Analytics' && renderAnalyticsPage()}
+          {activePage === 'Threat Alerts' && renderAlertsPage()}
+          {activePage === 'Reports' && renderReportsPage()}
+          {activePage === 'Configuration' && renderConfigurationPage()}
 
           <footer className="dashboard-footer">
             <span>DNSGuard v1.0.0 · DNS Exfiltration Detection</span>
