@@ -1,4 +1,3 @@
-
 import { useMemo, useRef, useState } from 'react'
 import {
   Shield, LayoutDashboard, Activity, AlertTriangle, FileText, Settings,
@@ -103,6 +102,7 @@ function formatTime(timestamp) {
 function App() {
   const [activePage, setActivePage] = useState('Overview')
   const [records, setRecords] = useState([])
+  const [analysisSummary, setAnalysisSummary] = useState(null)
   const [message, setMessage] = useState('Import your DNSGuard CSV report or load sample data.')
   const [fileName, setFileName] = useState('')
   const [search, setSearch] = useState('')
@@ -123,17 +123,17 @@ function App() {
   const fileRef = useRef(null)
 
   const metrics = useMemo(() => ({
-    total: records.length,
-    alerts: records.filter(r => r.severity === 'HIGH' || r.severity === 'MEDIUM').length,
-    high: records.filter(r => r.severity === 'HIGH').length,
-    rules: 7
-  }), [records])
+    total: analysisSummary?.recordsAnalyzed ?? records.length,
+    alerts: analysisSummary?.totalAlerts ?? records.filter(r => r.severity === 'HIGH' || r.severity === 'MEDIUM').length,
+    high: analysisSummary?.high ?? records.filter(r => r.severity === 'HIGH').length,
+    rules: 8
+  }), [records, analysisSummary])
 
   const severityData = useMemo(() => [
-    { name: 'High', value: records.filter(r => r.severity === 'HIGH').length, color: COLORS.HIGH },
-    { name: 'Medium', value: records.filter(r => r.severity === 'MEDIUM').length, color: COLORS.MEDIUM },
-    { name: 'Low', value: records.filter(r => r.severity === 'LOW').length, color: COLORS.LOW }
-  ].filter(item => item.value > 0), [records])
+    { name: 'High', value: analysisSummary?.high ?? records.filter(r => r.severity === 'HIGH').length, color: COLORS.HIGH },
+    { name: 'Medium', value: analysisSummary?.medium ?? records.filter(r => r.severity === 'MEDIUM').length, color: COLORS.MEDIUM },
+    { name: 'Low', value: analysisSummary?.low ?? records.filter(r => r.severity === 'LOW').length, color: COLORS.LOW }
+  ].filter(item => item.value > 0), [records, analysisSummary])
 
   const activityData = useMemo(() => {
     const grouped = {}
@@ -228,35 +228,64 @@ function App() {
   function loadSample() {
     const parsed = normalizeRecords(parseCSV(sampleCSV))
     setRecords(parsed)
+    setAnalysisSummary(null)
     setFileName('Sample DNS alerts')
     setMessage(`Sample data loaded successfully: ${parsed.length} records.`)
     setSearch('')
     setSeverityFilter('ALL')
   }
 
-  function importCSV(event) {
+  async function importCSV(event) {
     const file = event.target.files?.[0]
     if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        const parsed = normalizeRecords(parseCSV(String(reader.result || '')))
-        if (!parsed.length || !('timestamp' in parsed[0])) {
-          throw new Error('CSV is empty or has an invalid header.')
-        }
-        setRecords(parsed)
-        setFileName(file.name)
-        setMessage(`Successfully imported ${parsed.length} records from ${file.name}.`)
-        setSearch('')
-        setSeverityFilter('ALL')
-      } catch (error) {
-        setMessage(`Import failed: ${error.message}`)
+    setMessage(`Analyzing ${file.name} with DNSGuard engine...`)
+
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/csv' },
+        body: file
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || result.message || `API error: ${response.status}`)
       }
+
+      if (!Array.isArray(result.alerts)) {
+        throw new Error('Invalid response received from DNSGuard API.')
+      }
+
+      const parsed = normalizeRecords(result.alerts).map(record => ({
+        ...record,
+        reasons: Array.isArray(record.reasons)
+          ? record.reasons.join('; ')
+          : String(record.reasons || ''),
+        ruleIds: record.ruleIds || []
+      }))
+
+      setRecords(parsed)
+      setAnalysisSummary({
+        recordsAnalyzed: Number(result.recordsAnalyzed) || 0,
+        totalAlerts: Number(result.totalAlerts) || 0,
+        high: Number(result.high) || 0,
+        medium: Number(result.medium) || 0,
+        low: Number(result.low) || 0
+      })
+      setFileName(file.name)
+      setMessage(
+        `DNSGuard analysis complete: ${result.recordsAnalyzed} records analyzed, ${result.totalAlerts} alerts detected.`
+      )
+      setSearch('')
+      setSeverityFilter('ALL')
+      setSelectedRecord(null)
+    } catch (error) {
+      setMessage(`Analysis failed: ${error.message}`)
+    } finally {
+      event.target.value = ''
     }
-    reader.onerror = () => setMessage('Could not read the selected CSV file.')
-    reader.readAsText(file)
-    event.target.value = ''
   }
 
   function exportCSV() {
@@ -286,7 +315,7 @@ function App() {
 
   const cards = [
     { title: 'Records analyzed', value: metrics.total, description: 'Rows in imported report', icon: Database },
-    { title: 'Security alerts', value: metrics.alerts, description: 'High and medium severity', icon: ShieldAlert },
+    { title: 'Security alerts', value: metrics.alerts, description: 'All detected severity levels', icon: ShieldAlert },
     { title: 'High severity', value: metrics.high, description: 'Prioritize for investigation', icon: AlertTriangle },
     { title: 'Detection rules', value: metrics.rules, description: 'Configured DNS detection rules', icon: Shield }
   ]
@@ -429,7 +458,7 @@ function App() {
     return (
       <div className="page-stack">
         <div className="metrics-grid">
-          <div className="metric-card"><div className="metric-top">Total DNS records <Globe size={16} /></div><div className="metric-value">{records.length}</div><div className="metric-change">Imported query records</div></div>
+          <div className="metric-card"><div className="metric-top">Total DNS records analyzed <Globe size={16} /></div><div className="metric-value">{metrics.total}</div><div className="metric-change">Imported query records</div></div>
           <div className="metric-card"><div className="metric-top">Average risk score <Activity size={16} /></div><div className="metric-value">{averageRisk}<small>/100</small></div><div className="metric-change">Across imported records</div></div>
           <div className="metric-card"><div className="metric-top">Unique source IPs <Network size={16} /></div><div className="metric-value">{sourceData.length}</div><div className="metric-change">Distinct reporting sources</div></div>
           <div className="metric-card"><div className="metric-top">DNS record types <Database size={16} /></div><div className="metric-value">{recordTypes.length}</div><div className="metric-change">Types found in report</div></div>
@@ -563,8 +592,12 @@ function App() {
           {severityData.length ? (
             <div className="report-severity">
               {['HIGH', 'MEDIUM', 'LOW'].map(level => {
-                const count = records.filter(r => r.severity === level).length
-                const percent = records.length ? Math.round(count / records.length * 100) : 0
+                const count = level === 'HIGH'
+                  ? (analysisSummary?.high ?? records.filter(r => r.severity === level).length)
+                  : level === 'MEDIUM'
+                    ? (analysisSummary?.medium ?? records.filter(r => r.severity === level).length)
+                    : (analysisSummary?.low ?? records.filter(r => r.severity === level).length)
+                const percent = metrics.alerts ? Math.round(count / metrics.alerts * 100) : 0
                 return <div className="report-severity-row" key={level}>
                   <div><span className={`severity-pill ${level.toLowerCase()}`}>{level}</span><strong>{count} records</strong><span>{percent}%</span></div>
                   <div className="source-bar"><span style={{ width: `${percent}%`, background: COLORS[level] }} /></div>
@@ -701,7 +734,7 @@ function App() {
 
           <footer className="dashboard-footer">
             <span>DNSGuard v1.0.0 · DNS Exfiltration Detection</span>
-            <span>{records.length} records loaded</span>
+            <span>{records.length} alerts displayed</span>
           </footer>
         </section>
       </main>

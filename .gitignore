@@ -28,3 +28,14 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Real-world datasets and generated analysis
+data/dns_query_logs_part_01.csv
+reports/api_test_response.json
+reports/real_world_api_response.json
+reports/real_world_dns_alerts.csv
+
+# Local parser backup
+src/main/java/com/dnsguard/parser/DnsCsvParser.java.backup
+data/dnsguard_controlled_test.csv
+reports/controlled_test_report.csv

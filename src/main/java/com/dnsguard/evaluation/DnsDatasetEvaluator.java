@@ -120,14 +120,15 @@ public class DnsDatasetEvaluator {
     private static Map<String, RulePerformanceStats> createRuleStats() {
         Map<String, RulePerformanceStats> stats = new LinkedHashMap<>();
         String[] ids = {
-                DnsDetector.RULE_LONG_DOMAIN,
-                DnsDetector.RULE_HIGH_ENTROPY,
-                DnsDetector.RULE_REPEATED_QUERY,
-                DnsDetector.RULE_UNIQUE_SUBDOMAINS,
-                DnsDetector.RULE_QUERY_BURST,
-                DnsDetector.RULE_REPEATED_TXT,
-                DnsDetector.RULE_TXT_CORRELATION
-        };
+    DnsDetector.RULE_LONG_DOMAIN,
+    DnsDetector.RULE_HIGH_ENTROPY,
+    DnsDetector.RULE_REPEATED_QUERY,
+    DnsDetector.RULE_UNIQUE_SUBDOMAINS,
+    DnsDetector.RULE_QUERY_BURST,
+    DnsDetector.RULE_REPEATED_TXT,
+    DnsDetector.RULE_TXT_CORRELATION,
+    DnsDetector.RULE_REPEATED_NXDOMAIN
+};
         for (String id : ids) {
             stats.put(id, new RulePerformanceStats(id));
         }

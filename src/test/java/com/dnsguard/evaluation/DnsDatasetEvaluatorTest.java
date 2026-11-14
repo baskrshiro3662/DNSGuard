@@ -167,7 +167,11 @@ void reportsRuleLevelStatisticsForLabeledRecords() throws IOException {
 
     assertEquals(2, result.getRecordsEvaluated());
 
-    assertEquals(7, result.getRuleStats().size());
+    assertEquals(8, result.getRuleStats().size());
+
+assertNotNull(
+        result.getRuleStats().get(DnsDetector.RULE_REPEATED_NXDOMAIN)
+);
 
     RulePerformanceStats longDomainStats =
             result.getRuleStats().get(DnsDetector.RULE_LONG_DOMAIN);
